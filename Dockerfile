@@ -1,41 +1,26 @@
-FROM ubuntu:latest AS builder
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    perl \
-    cpanminus \
- && rm -rf /var/lib/apt/lists/*
-
+FROM alpine:latest AS builder
+RUN apk add -u perl-app-cpanminus apkbuild-cpan perl-dev build-base perl
 RUN cpanm Crypt::RC4
 RUN cpanm Digest::CRC
 RUN cpanm Crypt::Blowfish
-RUN cpanm Archive::Zip
+RUN cpanm Archive::Zip --force
 RUN cpanm OLE::Storage_Lite
-RUN apt-get remove -y \
-    build-essential \
-    curl \
-    perl \
- && rm -rf /var/lib/apt/lists/*
- ADD http://hexacorn.com/d/DeXRAY.pl /bin/dexray
- RUN chmod +rx /bin/dexray
+RUN apk del perl-app-cpanminus apkbuild-cpan perl-dev build-base
+RUN rm -rf /var/cache/apk
+ADD http://hexacorn.com/d/DeXRAY.pl /bin/dexray
+RUN chmod +rx /bin/dexray
 
 
 
 
-FROM ubuntu:latest
+FROM alpine:latest
 ARG PUID=1001
 ARG PGID=1001
 
 MAINTAINER tabledevil
 COPY --from=builder . .
-
-# ADD start.sh /start.sh
-# RUN chmod +x /start.sh
-RUN groupadd -g ${PGID} -r nonroot && \
-    useradd -u ${PUID} -r -g nonroot -d /home/nonroot -s /sbin/nologin -c "Nonroot User" nonroot && \
-    mkdir /home/nonroot && \
-    chown -R nonroot:nonroot /home/nonroot
-# ENTRYPOINT ["/start.sh"]
-# CMD ["shell"]
+RUN mkdir /data
+RUN adduser -D -u 1001 -s "/bin/busybox nologin" nonroot 1001
+RUN chown -R nonroot:nonroot /data
 USER nonroot
 WORKDIR /data/
